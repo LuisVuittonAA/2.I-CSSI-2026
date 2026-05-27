@@ -1,0 +1,8 @@
+import random
+import string
+
+def generateName():
+    while True:
+        name = ''.join(random.choices(string.ascii_letters, k=6))
+        if not photoManager.nameExists(name):
+            return name
