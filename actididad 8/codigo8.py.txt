@@ -1,0 +1,6 @@
+def triangle(row):
+    powers = [3**i for i in range(10, -1, -1)]
+    while len(row) > 1:
+        step = next(k for k in powers if k < len(row))
+        row = ["R" if a == b else "RGB".replace(a, "").replace(b, "") for a, b in zip(row, row[step:])]
+    return row[0]
