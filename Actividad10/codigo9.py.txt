@@ -1,0 +1,74 @@
+import re
+
+class Compiler(object):
+
+    def pass1(self, program):
+        self.tokens = re.findall(r'\[|\]|\(|\)|\+|-|\*|/|[a-zA-Z]+|\d+', program)
+        self.idx = 0
+        
+        self.idx += 1  
+        args = []
+        while self.tokens[self.idx] != ']':
+            args.append(self.tokens[self.idx])
+            self.idx += 1
+        self.idx += 1  
+        
+        self.arg_map = {var: i for i, var in enumerate(args)}
+        return self.parse_expr()
+
+    def parse_expr(self):
+        node = self.parse_term()
+        while self.idx < len(self.tokens) and self.tokens[self.idx] in ('+', '-'):
+            op = self.tokens[self.idx]
+            self.idx += 1
+            node = {'op': op, 'a': node, 'b': self.parse_term()}
+        return node
+
+    def parse_term(self):
+        node = self.parse_factor()
+        while self.idx < len(self.tokens) and self.tokens[self.idx] in ('*', '/'):
+            op = self.tokens[self.idx]
+            self.idx += 1
+            node = {'op': op, 'a': node, 'b': self.parse_factor()}
+        return node
+
+    def parse_factor(self):
+        tok = self.tokens[self.idx]
+        self.idx += 1
+        if tok == '(':
+            node = self.parse_expr()
+            self.idx += 1  
+            return node
+        return {'op': 'imm', 'n': int(tok)} if tok.isdigit() else {'op': 'arg', 'n': self.arg_map[tok]}
+
+    def pass2(self, ast):
+        if ast['op'] in ('imm', 'arg'):
+            return ast
+        
+        ast['a'] = self.pass2(ast['a'])
+        ast['b'] = self.pass2(ast['b'])
+        
+        if ast['a']['op'] == 'imm' and ast['b']['op'] == 'imm':
+            a, b = ast['a']['n'], ast['b']['n']
+            op = ast['op']
+            if op == '+': res = a + b
+            elif op == '-': res = a - b
+            elif op == '*': res = a * b
+            elif op == '/': res = a // b  
+            return {'op': 'imm', 'n': res}
+        
+        return ast
+
+    def pass3(self, ast):
+        if ast['op'] == 'imm': return [f"IM {ast['n']}"]
+        if ast['op'] == 'arg': return [f"AR {ast['n']}"]
+        
+        ops = {'+': 'AD', '-': 'SU', '*': 'MU', '/': 'DI'}
+        
+        return (
+            self.pass3(ast['b']) +   
+            ["PU"] +                 
+            self.pass3(ast['a']) +   
+            ["SW", "PO", "SW"] +     
+            [ops[ast['op']]]         
+        )
