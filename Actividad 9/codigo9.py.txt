@@ -1,0 +1,81 @@
+def solve_puzzle(clues):
+    N = 6
+    all_perms = [p for p in range(1, 7)]
+    from itertools import permutations
+    perms_list = list(permutations(range(1, 7)))
+    def visible(seq):
+        m = cnt = 0
+        for x in seq:
+            if x > m:
+                m, cnt = x, cnt + 1
+        return cnt
+    line_clues = {}
+    for i in range(N):
+        line_clues[i] = (clues[23 - i], clues[6 + i])
+        line_clues[i + N] = (clues[i], clues[17 - i])
+    valid_candidates = {}
+    for line in range(2 * N):
+        c_start, c_end = line_clues[line]
+        candidates = []
+        for p in perms_list:
+            if c_start and visible(p) != c_start: continue
+            if c_end and visible(p[::-1]) != c_end: continue
+            candidates.append(p)
+        valid_candidates[line] = candidates
+    grid = [[set(range(1, 7)) for _ in range(N)] for _ in range(N)]
+    changed = True
+    while changed:
+        changed = False
+        for line in range(2 * N):
+            is_col = line >= N
+            idx = line % N
+            current_allowed = valid_candidates[line]
+            filtered = []
+            for p in current_allowed:
+                possible = True
+                for i in range(N):
+                    r, c = (i, idx) if is_col else (idx, i)
+                    if p[i] not in grid[r][c]:
+                        possible = False
+                        break
+                if possible:
+                    filtered.append(p)
+            if len(filtered) < len(valid_candidates[line]):
+                valid_candidates[line] = filtered
+                changed = True
+            for i in range(N):
+                r, c = (i, idx) if is_col else (idx, i)
+                possible_vals = {p[i] for p in filtered}
+                if possible_vals != grid[r][c]:
+                    grid[r][c] = grid[r][c].intersection(possible_vals)
+                    changed = True
+    row_candidates = [valid_candidates[r] for r in range(N)]
+    board = [None] * N
+    col_sets = [set() for _ in range(N)]
+    def dfs(r):
+        if r == N:
+            return True
+        for cand in row_candidates[r]:
+            fail = False
+            for c in range(N):
+                if cand[c] in col_sets[c]:
+                    fail = True
+                    break
+            if fail:
+                continue
+            for c in range(N):
+                if cand[c] not in grid[r][c]:
+                    fail = True
+                    break
+            if fail:
+                continue
+            board[r] = cand
+            for c in range(N):
+                col_sets[c].add(cand[c])  
+            if dfs(r + 1):
+                return True
+            for c in range(N):
+                col_sets[c].remove(cand[c])
+        return False
+    dfs(0)
+    return tuple(board)
